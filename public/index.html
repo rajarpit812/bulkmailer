@@ -89,6 +89,27 @@
             background: #1557b0;
         }
 
+        .login-footer {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #e1e5e9;
+        }
+
+        .login-footer p {
+            font-size: 12px;
+            color: #666;
+            margin: 0;
+        }
+
+        .login-footer a {
+            color: #2c3e50;
+            text-decoration: none;
+        }
+
+        .login-footer a:hover {
+            text-decoration: underline;
+        }
+
         .google-icon {
             width: 20px;
             height: 20px;
@@ -470,6 +491,62 @@
             margin-top: 10px;
             display: inline-block;
         }
+
+        /* Footer Styles */
+        .footer {
+            background: #2c3e50;
+            color: white;
+            padding: 30px 40px;
+            margin-top: 40px;
+            text-align: center;
+        }
+
+        .footer-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .footer-links {
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+
+        .footer-links a {
+            color: #ecf0f1;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 8px 12px;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+        }
+
+        .footer-links a:hover {
+            background: #34495e;
+            text-decoration: underline;
+        }
+
+        .separator {
+            margin: 0 15px;
+            color: #95a5a6;
+        }
+
+        .footer-text {
+            color: #bdc3c7;
+            font-size: 14px;
+        }
+
+        .footer-description {
+            color: #ecf0f1;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #34495e;
+        }
+
+        .footer-description p {
+            margin: 0;
+        }
     </style>
 </head>
 <body>
@@ -493,6 +570,9 @@
                     </svg>
                     Sign in with Google
                 </a>
+                <div class="login-footer">
+                    <p>By signing in, you agree to our <a href="/terms" target="_blank">Terms of Service</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.</p>
+                </div>
             </div>
         </div>
 
@@ -586,6 +666,22 @@
 
             <div class="results" id="results"></div>
         </div>
+        
+        <!-- Footer with Privacy Policy and Terms Links -->
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="footer-links">
+                    <a href="/privacy" target="_blank">Privacy Policy</a>
+                    <span class="separator">|</span>
+                    <a href="/terms" target="_blank">Terms of Service</a>
+                    <span class="separator">|</span>
+                    <span class="footer-text">© 2024 BulkMailer. Professional email marketing tool.</span>
+                </div>
+                <div class="footer-description">
+                    <p>BulkMailer allows you to send personalized bulk emails individually using your Gmail account. Each email is sent separately to maintain recipient privacy and comply with email marketing best practices.</p>
+                </div>
+            </div>
+        </footer>
     </div>
 
     <script>

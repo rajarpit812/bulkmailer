@@ -5,11 +5,17 @@ const nodemailer = require('nodemailer');
 const path = require('path');
 const fs = require('fs');
 const session = require('express-session');
+const cors = require('cors');
 const { google } = require('googleapis');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Trust proxy for production (Render uses reverse proxy)
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
 
 // OAuth2 configuration
 const oauth2Client = new google.auth.OAuth2(
@@ -19,18 +25,24 @@ const oauth2Client = new google.auth.OAuth2(
 );
 
 // Middleware
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
-  resave: false,
-  saveUninitialized: false,
+  resave: true,
+  saveUninitialized: true,
   cookie: { 
-    secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   }
 }));
+app.use(express.static('public'));
 
 // Configure multer for file uploads (both email lists and attachments)
 const storage = multer.diskStorage({
@@ -225,7 +237,15 @@ app.get('/auth/google/callback', async (req, res) => {
       tokens: tokens
     };
     
-    res.redirect('/?login=success');
+    // Save session before redirect
+    req.session.save((err) => {
+      if (err) {
+        console.error('Session save error:', err);
+        return res.redirect('/?login=error');
+      }
+      console.log('Session saved successfully');
+      res.redirect('/?login=success');
+    });
   } catch (error) {
     console.error('OAuth callback error:', error);
     res.redirect('/?login=error');
@@ -234,6 +254,9 @@ app.get('/auth/google/callback', async (req, res) => {
 
 // Get user info
 app.get('/api/user', (req, res) => {
+  console.log('Session ID:', req.sessionID);
+  console.log('Session user:', req.session.user ? 'exists' : 'not found');
+  
   if (req.session.user) {
     res.json({
       authenticated: true,

@@ -1,4 +1,4 @@
-# Bulk Email Sender with Google OAuth2
+# BulkMailer
 
 A web application that allows users to login with their Gmail account and send individual emails in bulk. Each email is sent separately, ensuring recipients cannot see other email addresses.
 

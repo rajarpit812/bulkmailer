@@ -1,7 +1,7 @@
 {
-  "name": "bulk-email-sender",
+  "name": "bulkmailer",
   "version": "1.0.0",
-  "description": "Individual bulk email sender using Gmail",
+  "description": "BulkMailer - Individual bulk email sender using Gmail",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

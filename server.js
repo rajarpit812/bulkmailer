@@ -4,13 +4,15 @@ const XLSX = require('xlsx');
 const nodemailer = require('nodemailer');
 const path = require('path');
 const fs = require('fs');
-const session = require('express-session');
 const cors = require('cors');
 const { google } = require('googleapis');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// In-memory user store (for simplicity - in production use Redis or database)
+const userSessions = new Map();
 
 // Trust proxy for production (Render uses reverse proxy)
 if (process.env.NODE_ENV === 'production') {
@@ -31,18 +33,12 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'your-secret-key',
-  resave: true,
-  saveUninitialized: true,
-  cookie: { 
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
-  }
-}));
 app.use(express.static('public'));
+
+// Generate simple token
+function generateToken() {
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+}
 
 // Configure multer for file uploads (both email lists and attachments)
 const storage = multer.diskStorage({
@@ -172,9 +168,13 @@ const getMimeType = (filename) => {
 
 // Middleware to check authentication
 const requireAuth = (req, res, next) => {
-  if (!req.session.user) {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  
+  if (!token || !userSessions.has(token)) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
+  
+  req.user = userSessions.get(token);
   next();
 };
 
@@ -230,22 +230,22 @@ app.get('/auth/google/callback', async (req, res) => {
     
     console.log('User info:', userInfo.data.email);
     
-    // Store user session
-    req.session.user = {
+    // Generate token and store user session
+    const sessionToken = generateToken();
+    userSessions.set(sessionToken, {
       email: userInfo.data.email,
       name: userInfo.data.name,
       tokens: tokens
-    };
-    
-    // Save session before redirect
-    req.session.save((err) => {
-      if (err) {
-        console.error('Session save error:', err);
-        return res.redirect('/?login=error');
-      }
-      console.log('Session saved successfully');
-      res.redirect('/?login=success');
     });
+    
+    // Clean up old sessions (keep only last 100)
+    if (userSessions.size > 100) {
+      const firstKey = userSessions.keys().next().value;
+      userSessions.delete(firstKey);
+    }
+    
+    // Redirect with token in URL (will be stored in localStorage by frontend)
+    res.redirect(`/?token=${sessionToken}`);
   } catch (error) {
     console.error('OAuth callback error:', error);
     res.redirect('/?login=error');
@@ -254,14 +254,16 @@ app.get('/auth/google/callback', async (req, res) => {
 
 // Get user info
 app.get('/api/user', (req, res) => {
-  console.log('Session ID:', req.sessionID);
-  console.log('Session user:', req.session.user ? 'exists' : 'not found');
+  const token = req.headers.authorization?.replace('Bearer ', '');
   
-  if (req.session.user) {
+  console.log('Checking token:', token ? 'provided' : 'not provided');
+  
+  if (token && userSessions.has(token)) {
+    const user = userSessions.get(token);
     res.json({
       authenticated: true,
-      email: req.session.user.email,
-      name: req.session.user.name
+      email: user.email,
+      name: user.name
     });
   } else {
     res.json({ authenticated: false });
@@ -270,7 +272,12 @@ app.get('/api/user', (req, res) => {
 
 // Logout
 app.post('/api/logout', (req, res) => {
-  req.session.destroy();
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  
+  if (token) {
+    userSessions.delete(token);
+  }
+  
   res.json({ success: true });
 });
 
@@ -334,8 +341,8 @@ app.post('/upload-and-send', requireAuth, upload.any(), async (req, res) => {
     }
 
     console.log('User tokens available:', {
-      hasTokens: !!req.session.user.tokens,
-      userEmail: req.session.user.email,
+      hasTokens: !!req.user.tokens,
+      userEmail: req.user.email,
       totalEmails: emails.length,
       attachmentCount: attachments.length
     });
@@ -349,8 +356,8 @@ app.post('/upload-and-send', requireAuth, upload.any(), async (req, res) => {
         console.log(`Sending email ${i + 1}/${emails.length} to: ${email}`);
         
         await sendEmailViaGmailAPI(
-          req.session.user.tokens,
-          req.session.user.email,
+          req.user.tokens,
+          req.user.email,
           email,
           subject,
           message,

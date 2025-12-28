@@ -923,12 +923,24 @@
 
         async function checkAuthStatus() {
             try {
-                const response = await fetch('/api/user');
+                const token = localStorage.getItem('bulkmailer_token');
+                
+                if (!token) {
+                    showLogin();
+                    return;
+                }
+                
+                const response = await fetch('/api/user', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
                 const data = await response.json();
                 
                 if (data.authenticated) {
                     showEmailForm(data);
                 } else {
+                    localStorage.removeItem('bulkmailer_token');
                     showLogin();
                 }
             } catch (error) {
@@ -956,10 +968,19 @@
 
         async function logout() {
             try {
-                await fetch('/api/logout', { method: 'POST' });
+                const token = localStorage.getItem('bulkmailer_token');
+                await fetch('/api/logout', { 
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                localStorage.removeItem('bulkmailer_token');
                 showLogin();
             } catch (error) {
                 console.error('Logout failed:', error);
+                localStorage.removeItem('bulkmailer_token');
+                showLogin();
             }
         }
 
@@ -1027,9 +1048,13 @@
             results.style.display = 'none';
             
             try {
+                const token = localStorage.getItem('bulkmailer_token');
                 const response = await fetch('/upload-and-send', {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
                 });
                 
                 const data = await response.json();
@@ -1073,12 +1098,21 @@
             }
         });
 
-        // Check for login success/error in URL
+        // Check for token in URL (after OAuth callback)
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('login') === 'success') {
+        const token = urlParams.get('token');
+        
+        if (token) {
+            // Store token and clean URL
+            localStorage.setItem('bulkmailer_token', token);
+            window.history.replaceState({}, document.title, '/');
             checkAuthStatus();
         } else if (urlParams.get('login') === 'error') {
             alert('Login failed. Please try again.');
+            showLogin();
+        } else {
+            // Check existing auth status
+            checkAuthStatus();
         }
     </script>
 </body>
